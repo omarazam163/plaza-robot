@@ -33,7 +33,7 @@ enum direction
 };
 void Movement(int,int, direction);
 void armMovement();
-void armAngels();
+void armAngles();
 
 
 void setup() {
@@ -67,6 +67,7 @@ void loop() {
   if (PS4.isConnected()) {
     digitalWrite(2,HIGH);
     carMovement();
+    armAngles();
   }
   else {
     digitalWrite(2,LOW);
@@ -147,7 +148,7 @@ void Movement(int speedLeft, int speedRight, direction dir) {
 
 ===================================================================================================
 */
-void armAngels() {
+void armAngles() {
   if (PS4.data.analog.stick.rx >= 5) SERVO_X_ANGLE += 2;
   else if (PS4.data.analog.stick.rx <= -5) SERVO_X_ANGLE -= 2;
   if( PS4.data.analog.stick.ry >= 5) {

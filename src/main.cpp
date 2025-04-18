@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <Ps3Controller.h>
+#include <PS4Controller.h>
 #define IN1 18
 #define IN2 5
 #define ENA 4
@@ -30,7 +30,7 @@ void setup() {
   pinMode(IN4, OUTPUT);
   pinMode(ENA, OUTPUT);
   pinMode(ENB, OUTPUT);
-  Ps3.begin("00:00:00:00:00:00");
+  PS4.begin("1a:2b:3c:01:01:01");
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, HIGH);
@@ -41,7 +41,7 @@ void setup() {
 }
 
 void loop() {
-  if (Ps3.isConnected()) {
+  if (PS4.isConnected()) {
     digitalWrite(2,HIGH);
     carMovement();
   }
@@ -52,36 +52,17 @@ void loop() {
 
 
 void carMovement() {
-  // if (Ps3.data.analog.stick.ly<=-25)
-  // {
-  //     int speed = map(abs(Ps3.data.analog.stick.ly),25,128,0,255);
-  //     int speeds[2] = {speed, speed}; // 0 index => left 1 index => right
-  //     carMovementX(speeds);
-  //     Movement(speeds[0], speeds[1],direction::forward);
-  // }
-  // else if (Ps3.data.analog.stick.ly>=25)
-  // {
-  //     int speed = map(abs(Ps3.data.analog.stick.ly),25,128,0,255);
-  //     int speeds[2] = {speed, speed}; // 0 index => left 1 index => right
-  //     carMovementX(speeds);
-  //     Movement(speeds[0], speeds[1],direction::reverse);
-  // }
-  // else
-  // {
-  //   Movement(0, 0,direction::stop);
-  // }
-  // Serial.println(Ps3.data.analog.button.l2);
-  if(Ps3.data.analog.button.r2>=25)
+  if(PS4.data.analog.button.r2)
   {
-    int speed = map(abs(Ps3.data.analog.button.r2),25,150,0,255);
-    int speeds[2] = {speed, speed}; // 0 index => left 1 index => right
+    int speed = abs(PS4.data.analog.button.r2);
+    int speeds[2] = {speed, speed};
     carMovementX(speeds);
     Movement(speeds[0], speeds[1],direction::forward);
   }
-  else if (Ps3.data.analog.button.l2>=25)
+  else if (PS4.data.analog.button.l2)
   {
-    int speed = map(abs(Ps3.data.analog.button.l2),25,150,0,255);
-    int speeds[2] = {speed, speed}; // 0 index => left 1 index => right
+    int speed = abs(PS4.data.analog.button.l2);
+    int speeds[2] = {speed, speed}; 
     carMovementX(speeds);
     Movement(speeds[0], speeds[1],direction::reverse);
   }
@@ -92,27 +73,15 @@ void carMovement() {
 }
 
 void carMovementX(int speeds[]) {
-  Serial.print("normal ");
-  Serial.print(speeds[0]);
-  Serial.print(" ");  
-  Serial.println(speeds[1]);
-  if (Ps3.data.analog.stick.lx<=-25)
+  if (PS4.data.analog.stick.lx>=5)
   {
-      int speedMinus = map(abs(Ps3.data.analog.stick.lx),25,128,0,255);
-      speeds[0] -= speedMinus;
-  Serial.print("left ");
-  Serial.print(speeds[0]);
-  Serial.print(" ");  
-  Serial.println(speeds[1]);
+  int speedMinus = map(abs(PS4.data.analog.stick.lx),5,128,0,speeds[0]);
+  speeds[1] -= speedMinus; 
   }
-  else if (Ps3.data.analog.stick.lx>=25)
+  else if (PS4.data.analog.stick.lx<=-5)
   {
-      int speedMinus = map(abs(Ps3.data.analog.stick.lx),25,128,0,255);
-      speeds[1] -= speedMinus;
-  Serial.print("right ");
-  Serial.print(speeds[0]);
-  Serial.print(" ");  
-  Serial.println(speeds[1]);
+  int speedMinus = map(abs(PS4.data.analog.stick.lx),5,128,0,speeds[1]);
+  speeds[0] -= speedMinus;
   }
 }
 
@@ -144,7 +113,7 @@ void Movement(int speedLeft, int speedRight, direction dir) {
   }
   analogWrite(ENA, speedLeft);
   analogWrite(ENB, speedRight);
-  // delay(1);
+  delay(20);
 }
 
 

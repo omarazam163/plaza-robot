@@ -33,21 +33,21 @@ int baseSpeed = 150;  // Base speed (0-255)
 int maxSpeed = 255;   // Maximum speed (0-255)
 
 //servo
-#define SERVO_X_pin 27
-#define SERVO_Y1_pin 14
-#define SERVO_Y2_pin 12
-#define SERVO_Z_pin 13
+#define SERVO_X_pin 13
+#define SERVO_Y_pin 14
+#define SERVO_Z_pin 12
+#define SERVO_G_pin 27
 // servo intial angles
 int SERVO_X_ANGLE = 90;
-int SERVO_Y1_ANGLE = 90;
-int SERVO_Y2_ANGLE = 90;
+int SERVO_Y_ANGLE = 24;
 int SERVO_Z_ANGLE = 90;
+int SERVO_G_ANGLE = 90;
 
 // servo objects
 Servo SERVO_X;
-Servo SERVO_Y1;
-Servo SERVO_Y2;
+Servo SERVO_Y;
 Servo SERVO_Z;
+Servo SERVO_G;
 
 
 // dicerotion 
@@ -100,6 +100,7 @@ void setup() {
   analogWrite(ENB, 0);
   // PID INIT
   myPID.SetMode(AUTOMATIC);
+  myPID.SetTunings(Kp,Ki,Kd);
   myPID.SetOutputLimits(-maxSpeed, maxSpeed);
 
   //ps4 init
@@ -113,9 +114,9 @@ void setup() {
   MG995 servo -> 1000us and 2000us
   */
   SERVO_X.attach(SERVO_X_pin, 500, 2400); 
-  SERVO_Y1.attach(SERVO_Y1_pin, 500, 2400); 
-  SERVO_Y2.attach(SERVO_Y2_pin, 500, 2400);
+  SERVO_Y.attach(SERVO_Y_pin, 500, 2400); 
   SERVO_Z.attach(SERVO_Z_pin, 500, 2400);
+  SERVO_G.attach(SERVO_G_pin, 500, 2400);
   armMovement();
   Serial.begin(115200);
 }
@@ -127,19 +128,18 @@ void loop() {
       // Serial.println("Line Follower Mode");
       PS4.setLed(255,0,0);
       PIDStart();
+      // BackupPlan();
     }
     else
     {
     // Serial.println("PS4 Controller Mode");
     digitalWrite(2,HIGH);
     carMovement();
-    // armAngles();
+    armAngles();
     }
   }
   else {
     digitalWrite(2,LOW);
-    PIDStart();
-
   }
 }
 
@@ -214,42 +214,40 @@ void Movement(int speedLeft, int speedRight, direction dir) {
 
 /* 
 ===================================================================================================
-  Arm Logic
 
+Arm Logic
 
 ===================================================================================================
 */
 void armAngles() {
-  if (PS4.data.analog.stick.rx >= 5) SERVO_X_ANGLE += 2;
-  else if (PS4.data.analog.stick.rx <= -5) SERVO_X_ANGLE -= 2;
-  if( PS4.data.analog.stick.ry >= 5) {
-    SERVO_Y1_ANGLE += 2;
-    SERVO_Y2_ANGLE -= 2;}
-  else if (PS4.data.analog.stick.ry <= -5) {
-    SERVO_Y1_ANGLE -= 2;
-    SERVO_Y2_ANGLE += 2;}
-  if (PS4.event.button_down.r1) {
-    while(PS4.event.button_down.r1) {
-      SERVO_Z_ANGLE += 2;
-      armMovement();
-      // delay(500);
+
+  if (PS4.data.button.right ) SERVO_X_ANGLE = max(0,SERVO_X_ANGLE-3);
+  else if (PS4.data.button.left ) SERVO_X_ANGLE =min(180,SERVO_X_ANGLE+3);
+
+  if (PS4.data.button.down ) {SERVO_Y_ANGLE = max(24,SERVO_Y_ANGLE-3);Serial.println(SERVO_Y_ANGLE);}
+  else if (PS4.data.button.up ) {SERVO_Y_ANGLE = min(90,SERVO_Y_ANGLE+3);Serial.println(SERVO_Y_ANGLE);}
+
+  if (PS4.data.button.cross ) {SERVO_Z_ANGLE = max(0,SERVO_Z_ANGLE-3); Serial.println(SERVO_Z_ANGLE);}
+  else if (PS4.data.button.triangle ) {SERVO_Z_ANGLE = min(180,SERVO_Z_ANGLE+3);Serial.println(SERVO_Z_ANGLE);}
+
+    if(PS4.data.button.r1) {
+      SERVO_G_ANGLE = min(180,SERVO_G_ANGLE+3);
     }
+  else if(PS4.data.button.l1){
+    SERVO_G_ANGLE= max(0,SERVO_G_ANGLE-3);
   }
-  else if(PS4.event.button_down.l1){
-    SERVO_Z_ANGLE=90;
-  }
-  if(PS4.event.button_down.triangle){
+  if(PS4.event.button_down.ps){
     SERVO_X_ANGLE = 90;
-    SERVO_Y1_ANGLE = 90;
-    SERVO_Y2_ANGLE = 90;
+    SERVO_Y_ANGLE = 90;
+    SERVO_Z_ANGLE = 90;
   }
   armMovement();
 }
 void armMovement(){
   SERVO_X.write(min(SERVO_X_ANGLE,180));
-  SERVO_Y1.write(min(SERVO_Y1_ANGLE,180));
-  SERVO_Y2.write(min(SERVO_Y2_ANGLE,180));
+  SERVO_Y.write(min(SERVO_Y_ANGLE,180));
   SERVO_Z.write(min(SERVO_Z_ANGLE,180));
+  SERVO_G.write(min(SERVO_G_ANGLE,180));
   delay(20);
 }
 
@@ -324,4 +322,30 @@ void PIDStart()
   readSensors();  // Read sensor values
   calculatePID();  // Calculate PID output
   motorControl();  // Control motors based on PID output
+}
+
+
+// 0: white
+// 1: black / road
+void BackupPlan() {
+  readSensors();
+  if (IR_RIGHT == 1) {
+    do{
+    Movement(baseSpeed, 0, direction::forward);
+    readSensors();
+  }
+    while (IR_CENTER == 1);
+    Movement(baseSpeed, baseSpeed, direction::forward);
+  }
+
+  else if(IR_LEFT == 1) {
+    do{
+      Movement(0, baseSpeed, direction::forward);
+      readSensors();
+    }
+      while (IR_CENTER == 1);
+      Movement(baseSpeed, baseSpeed, direction::forward);
+    }
+  
+  else Movement(baseSpeed, baseSpeed, direction::forward);
 }

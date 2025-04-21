@@ -21,9 +21,9 @@
 //pid
 double Setpoint = 0;  // We want to stay centered (position 0)
 double Input, Output;
-double Kp = 0.6, Ki = 0.01, Kd = 0.2;
+double Kp = 50, Ki = 0.5, Kd = 1;
+// double Kp = 50, Ki = 15, Kd = 0;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
-
 //line follower flag
 bool lineFollowerFlag = false;
 
@@ -66,15 +66,17 @@ void readSensors();
 void PIDStart();
 void calculatePID();
 void motorControl();
+void movementPID(int, int);
 
 void notify()
 {
   if(PS4.event.button_down.circle)
   {
     // Serial.println("Circle Pressed");
-    lineFollowerFlag = !lineFollowerFlag;
+    if(lineFollowerFlag) PS4.setLed(255,0,0);
+    else PS4.setLed(0,255,0);
+    lineFollowerFlag = !lineFollowerFlag; 
     Serial.println(lineFollowerFlag);
-    
   }
 }
 void setup() {
@@ -99,9 +101,9 @@ void setup() {
   analogWrite(ENA, 0);
   analogWrite(ENB, 0);
   // PID INIT
-  myPID.SetMode(AUTOMATIC);
-  myPID.SetTunings(Kp,Ki,Kd);
+  myPID.SetMode(AUTOMATIC); 
   myPID.SetOutputLimits(-maxSpeed, maxSpeed);
+  myPID.SetTunings(Kp, Ki, Kd);
 
   //ps4 init
   PS4.attach(notify);
@@ -125,10 +127,8 @@ void loop() {
   if (PS4.isConnected()) {
     if(lineFollowerFlag)
     {
-      // Serial.println("Line Follower Mode");
       PS4.setLed(255,0,0);
       PIDStart();
-      // BackupPlan();
     }
     else
     {
@@ -264,12 +264,12 @@ void armMovement(){
 
 void readSensors() {
   // Read sensor values and calculate position
-  // Line is black (0), background is white (1)
-  int leftmost = !digitalRead(IR_LEFTMOST);  // Invert if needed
-  int left = !digitalRead(IR_LEFT);
-  int center = !digitalRead(IR_CENTER);
-  int right = !digitalRead(IR_RIGHT);
-  int rightmost = !digitalRead(IR_RIGHTMOST);
+  // Line is black (1), background is white (0)
+  int leftmost = digitalRead(IR_LEFTMOST);  // Invert if needed
+  int left = digitalRead(IR_LEFT);
+  int center = digitalRead(IR_CENTER);
+  int right = digitalRead(IR_RIGHT);
+  int rightmost = digitalRead(IR_RIGHTMOST);
   Serial.print(leftmost);
   Serial.print(" ");
   Serial.print(left);
@@ -279,20 +279,22 @@ void readSensors() {
   Serial.print(right);
   Serial.print(" ");
   Serial.println(rightmost);
+  // delay(1000);
 
   // Calculate position (-4 to +4)
-  if (leftmost && !left && !center && !right && !rightmost) Input = -4;
-  else if (leftmost && left && !center && !right && !rightmost) Input = -3;
+  if (leftmost && !left && !center && !right && !rightmost) Input = -7;
+  else if (leftmost && left && !center && !right && !rightmost) Input = -5;
   else if (!leftmost && left && !center && !right && !rightmost) Input = -2;
   else if (!leftmost && left && center && !right && !rightmost) Input = -1;
   else if (!leftmost && !left && center && !right && !rightmost) Input = 0;
   else if (!leftmost && !left && center && right && !rightmost) Input = 1;
   else if (!leftmost && !left && !center && right && !rightmost) Input = 2;
-  else if (!leftmost && !left && !center && right && rightmost) Input = 3;
-  else if (!leftmost && !left && !center && !right && rightmost) Input = 4;
+  else if (!leftmost && !left && !center && right && rightmost) Input = 5;
+  else if (!leftmost && !left && !center && !right && rightmost) Input = 7;
   else if (leftmost && left && center && right && rightmost) Input = 0;  // All sensors on line
-  else Input = 0;  // No line detected or other cases
+  // else Input = 0;  // No line detected or other cases
   Serial.println(Input);
+  // delay(1000);
 }
 
 void calculatePID() {
@@ -307,14 +309,14 @@ void motorControl() {
   rightMotorSpeed = baseSpeed + Output;
   
   // Constrain speeds to 0-maxSpeed
-  leftMotorSpeed = constrain(leftMotorSpeed, 0, maxSpeed);
-  rightMotorSpeed = constrain(rightMotorSpeed, 0, maxSpeed);
+  leftMotorSpeed = constrain(leftMotorSpeed, -maxSpeed, maxSpeed);
+  rightMotorSpeed = constrain(rightMotorSpeed, -maxSpeed, maxSpeed);
   Serial.println("Left:");
   Serial.println(leftMotorSpeed);
   Serial.println("Right:");
   Serial.println(rightMotorSpeed);
-  delay(1000);
-  // Movement(leftMotorSpeed, rightMotorSpeed, direction::forward);
+  // delay(1000);
+  movementPID(leftMotorSpeed, rightMotorSpeed);
 }
 
 void PIDStart()
@@ -322,6 +324,33 @@ void PIDStart()
   readSensors();  // Read sensor values
   calculatePID();  // Calculate PID output
   motorControl();  // Control motors based on PID output
+}
+
+void movementPID(int speedLeft,int speedRight) {
+  if(speedLeft>0)
+  {
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+  }
+  else
+  {
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+  }
+
+  if (speedRight>0)
+  {
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
+  }
+  else
+  {
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, HIGH);
+  }
+
+  analogWrite(ENA, abs(speedLeft));
+  analogWrite(ENB, abs(speedRight));
 }
 
 
@@ -334,7 +363,7 @@ void BackupPlan() {
     Movement(baseSpeed, 0, direction::forward);
     readSensors();
   }
-    while (IR_CENTER == 1);
+    while (IR_CENTER != 1);
     Movement(baseSpeed, baseSpeed, direction::forward);
   }
 
@@ -343,7 +372,7 @@ void BackupPlan() {
       Movement(0, baseSpeed, direction::forward);
       readSensors();
     }
-      while (IR_CENTER == 1);
+      while (IR_CENTER != 1);
       Movement(baseSpeed, baseSpeed, direction::forward);
     }
   
